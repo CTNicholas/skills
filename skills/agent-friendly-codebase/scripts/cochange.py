@@ -12,7 +12,7 @@ at --depth below the repo root, or below --root. --root also limits the
 analysis to files under that directory (for example, one app in a monorepo).
 
 With --map: scores each candidate structure against today's layout on the
-same basis. A map is JSON from unit names to globs, matched in order (first
+same basis. A map is JSON from feature names to globs, matched in order (first
 match wins) against paths AS THEY APPEAR IN HISTORY (pre-move paths), relative
 to --root if given:
   {"channels": ["components/channel-*", "lib/channels.ts"],
@@ -169,7 +169,7 @@ def main():
         with open(map_path, encoding="utf-8") as fh:
             mapping = json.load(fh)
         today_sets, cand_sets = [], []
-        per_unit = collections.Counter()
+        per_feature = collections.Counter()
         unmapped = collections.Counter()
         multi = collections.Counter()
         for _, fs in data:
@@ -185,7 +185,7 @@ def main():
             today_sets.append(today)
             cand_sets.append(cand)
             for u in cand:
-                per_unit[u] += 1
+                per_feature[u] += 1
             if len(cand) > 1:
                 multi[tuple(sorted(cand))] += 1
         t_single, t_total = score(today_sets)
@@ -195,17 +195,17 @@ def main():
         print(f"  today's areas : {t_single}/{t_total} ({pct(t_single, t_total)}) "
               f"touched exactly one area")
         print(f"  this candidate: {c_single}/{c_total} ({pct(c_single, c_total)}) "
-              f"touched exactly one unit")
-        print("Commits per unit:")
-        for u, n in per_unit.most_common():
+              f"touched exactly one feature")
+        print("Commits per feature:")
+        for u, n in per_feature.most_common():
             print(f"  {n:4d}  {u}")
         if multi:
-            print(f"Most common multi-unit combinations, top {a.top}:")
+            print(f"Most common multi-feature combinations, top {a.top}:")
             for combo, n in multi.most_common(a.top):
                 print(f"  {n:4d}  {' + '.join(combo)}")
         if unmapped:
             print(f"Unmapped files ({len(unmapped)}), scored by their current area; "
-                  f"assign them to a unit or a '_' group. Top {a.top}:")
+                  f"assign them to a feature or a '_' group. Top {a.top}:")
             for f, n in unmapped.most_common(a.top):
                 print(f"  {n:4d}  {f}")
 

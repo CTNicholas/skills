@@ -1,37 +1,41 @@
-# The contract: AGENTS.md, unit docs, scoped rules
+# The contract: AGENTS.md, FEATURE_MAP.md, FEATURE.md
 
 ## Contents
 
 1. What goes where
 2. AGENTS.md template
 3. The verification section
-4. Unit doc template
-5. The feature map
-6. Scoped rules and tool pointers
+4. FEATURE.md template
+5. FEATURE_MAP.md
+6. Nested rules
 7. Worked example doc
 
 ## 1. What goes where
 
-| Information                                              | Lives in                                   | Kept true by                          |
-| -------------------------------------------------------- | ------------------------------------------ | ------------------------------------- |
-| Layout, dependency rules, anatomy, how to verify         | AGENTS.md (always loaded, short)           | the checker; review                   |
-| What a unit does, as a user would see it                 | that unit's doc                            | the review skill                      |
-| Which units, blocks and core modules exist, one line each, and what users call them | the feature map (`FEATURE_MAP.md`) | the checker (`feature-map` rule); review for "Also called" |
-| Which files a unit has, one line each                    | the unit doc's `## Files`                  | the checker (`unit-files` rule)       |
-| Rules for some paths only (tests, migrations, one package) | scoped rule files                        | the review skill                      |
-| Who depends on whom; who owns a file                     | nowhere: `graph`, `owner`                  | computed                              |
-| Counts (tests, files, suppressions, units)               | nowhere: commands print them               | computed                              |
-| Why a line is suppressed                                 | inline, on the suppression                 | the checker (`suppressions` rule)     |
-| Why a tool is configured a certain way                   | a comment in that config file              | review                                |
-| Tooling quirks with no config line to sit on             | AGENTS.md "Tooling notes"                  | review                                |
+| Information | Lives in | Kept true by |
+| --- | --- | --- |
+| Layout, dependency rules, anatomy, how to verify | `AGENTS.md` (read on every task, short) | the checker; review |
+| Which features, blocks and core modules exist, one line each, and what users call them | `FEATURE_MAP.md` (a separate file next to AGENTS.md) | the checker (`feature-map` rule); review for "Also called" |
+| What a feature does, as a user would see it | that feature's `FEATURE.md` | the review skill |
+| Which files a feature has, one line each | `FEATURE.md`'s `## Files` section | the checker (`feature-files` rule) |
+| Rules for some paths only (tests, migrations, one package) | a nested `AGENTS.md` in that folder | the review skill |
+| Who depends on whom; who owns a file | nowhere: `graph`, `owner` | computed |
+| Counts (tests, files, suppressions, features) | nowhere: commands print them | computed |
+| Why a line is suppressed | inline, on the suppression | the checker (`suppressions` rule) |
+| Why a tool is configured a certain way | a comment in that config file | review |
+| Tooling quirks with no config line to sit on | AGENTS.md "Tooling notes" | review |
+
+There's no `CLAUDE.md`: agents read `AGENTS.md`. If the repo has a `CLAUDE.md`,
+move anything still true into AGENTS.md and delete it, so there's one contract.
 
 AGENTS.md is read on every task, so every line costs context on every task.
 Leave out of it:
 
 - counts of anything
-- inventories that the tree or a script can produce
-- behaviour descriptions, which belong in unit docs
-- path-specific rules, which belong in scoped rule files
+- inventories that the tree or a script can produce (the feature list lives in
+  FEATURE_MAP.md)
+- behaviour descriptions, which belong in `FEATURE.md`
+- path-specific rules, which belong in nested AGENTS.md files
 - detailed restatements of what a tool already enforces (one line plus the
   name of the check is enough)
 
@@ -39,14 +43,17 @@ Leave out of it:
 
 Fill this in from the audit, and delete any section that doesn't apply. Aim
 for under ~150 lines. Write every command as its literal invocation
-(`npm run check:unit -- channels`, `just check-unit orders`), not as a role
-name.
+(`npm run check:feature -- channels`, `just check-feature orders`), not as a
+role name.
 
 ````markdown
 # AGENTS.md
 
-<One paragraph: what this is; units live in <dir>, shared code in <dir>; a
+<One paragraph: what this is; features live in <dir>, shared code in <dir>; a
 change is done when `<check>` is green (see Verification).>
+
+Start with [FEATURE_MAP.md](FEATURE_MAP.md) to find the feature that owns what
+you're changing, then read that feature's FEATURE.md.
 
 ## Layout
 
@@ -55,38 +62,38 @@ change is done when `<check>` is green (see Verification).>
 ## Dependency rules
 
 | Layer | May import |
-| ----- | ---------- |
+| --- | --- |
 
-- Other units only through their public surface (`<surface file>`).
-- No cycles between units; when one appears, move the shared piece to `<core>`.
+- Other features only through their public surface (`<surface file>`).
+- No cycles between features; when one appears, move the shared piece to `<core>`.
 - Promote to `<building blocks>` only on second use.
 
-Enforced by `<structure>`. Use `<graph> <unit>` for a unit's dependencies,
-`<graph> <unit> --reverse` for its dependents, and `<owner> <file>` to find the
-owning unit and its doc.
+Enforced by `<structure>`. Use `<graph> <feature>` for a feature's
+dependencies, `<graph> <feature> --reverse` for its dependents, and
+`<owner> <file>` to find the owning feature and its FEATURE.md.
 
-## Unit anatomy
+## Feature anatomy
 
-<the unit template tree: public surface, main files, tests, unit doc; plus a
-server-only folder if client and server code share this tree>
+<the feature template tree: public surface, main files, tests, FEATURE.md;
+plus a server-only folder if client and server code share this tree>
 
 - Tests: <placement rule; which suffix or directory belongs to which runner>.
-- Unit doc: observable behaviour by sub-feature, ending with `## Files`.
-- [FEATURE_MAP.md](FEATURE_MAP.md): which unit owns what, and what shared code
-  already exists. Start there to find where a change goes, and check it before
-  writing a helper.
+- FEATURE.md: observable behaviour by sub-feature, ending with `## Files`.
+- Check FEATURE_MAP.md's shared code tables before writing a helper; core may
+  already have it.
 
 ## Conventions
 
 Each one names the check that enforces it, or says "review" if only the
 review skill checks it.
 
-- Comments in source files: <policy>. Explanations go in the unit doc or a test
+- Comments in source files: <policy>. Explanations go in FEATURE.md or a test
   name. — `<structure>`
 - Suppressions: single line, with an inline reason. — `<structure>`
-- Formatting: never by hand; run `<fix>`. — `<format-check>`
-- <repo-specific conventions approved in the report> — <check or "review">
-- Scoped rules: <each scoped rule file, and what it covers>
+- Formatting: runs automatically after every edit (<hooks>); otherwise run
+  `<fix>`. Never format by hand. — `<format-check>`
+- <repo-specific conventions> — <check or "review">
+- Nested rules: <each nested AGENTS.md, and what it covers>
 
 ## Verification
 
@@ -94,25 +101,29 @@ review skill checks it.
 
 ## Running locally
 
-<`<dev-local>` and what it starts; how ports, databases and build directories
-are isolated per worktree; which flows need real keys>
+<`<dev-local>` and the local services it starts; how ports, databases and
+build directories are isolated per worktree>
+
+Cloud-only: <flows that need real keys, which tests skip locally, and the
+command that runs them with keys>.
 
 Environment: run `<env-check>` (or list only variables whose purpose isn't
 obvious from their names).
 
-## Adding or changing a unit
+## Adding or changing a feature
 
-1. Find the owning unit in FEATURE_MAP.md and read its unit doc. For a new
-   unit, run `<new-kind> <name> "<one sentence: what a user can do>"`, which
-   also adds its feature-map row.
-2. Describe the behaviour change in the unit doc.
-3. Write or adjust the test at the right level.
-4. Implement inside the unit; export new public pieces from the surface file.
-5. Iterate with `<check-unit> <unit>`.
-6. If the unit's scope changed, update the first line of its doc (the checker
-   makes you update its feature-map row to match), and add any new name users
-   call it to "Also called".
-7. Run `<fix>`, then `<check>`, plus `<e2e>` if a user flow changed.
+1. Find the owning feature in FEATURE_MAP.md and read its FEATURE.md. For a
+   new feature, run `<new-feature> <name> "<one sentence: what a user can do>"`,
+   which also adds its FEATURE_MAP.md row.
+2. Describe the behaviour change in FEATURE.md.
+3. Write or adjust the test first, at the right level.
+4. Implement inside the feature; export new public pieces from the surface
+   file.
+5. Iterate with `<check-feature> <feature>`.
+6. If the feature's scope changed, update the first line of its FEATURE.md
+   (the checker makes you update its FEATURE_MAP.md row to match), and add any
+   new name users call it to "Also called".
+7. Run `<check>`, plus `<e2e>` if a user flow changed.
 8. Self-review the diff with the `<repo>-review` skill, and fix what it finds.
 
 See <worked example path> for a real change, end to end.
@@ -128,9 +139,6 @@ env-check, graph, owner, test-coverage. One line each: command — what it does
 <only quirks that have no config line to sit on>
 ````
 
-If the team uses a tool that doesn't read AGENTS.md natively, add a pointer to
-it rather than a copy (section 6).
-
 ## 3. The verification section
 
 This section lets an agent prove a change is correct *and* complete without
@@ -143,21 +151,21 @@ item in the completeness checklist is ticked."
 
 **Commands**:
 
-| Command           | Proves                                                           | When                                   |
-| ----------------- | ---------------------------------------------------------------- | -------------------------------------- |
-| `<typecheck>`     | types hold across the whole project                              | after each series of edits             |
-| `<lint>`          | framework and correctness rules, with zero warnings              | after each series of edits             |
-| `<structure>`     | layers, public surfaces, cycles, anatomy, test placement, docs, suppressions, sync | after adding or moving files |
-| `<format-check>`  | every file is formatted                                          | before declaring done                  |
-| `<test-baseline>` | all tests pass and none were lost                                | before declaring done                  |
-| `<check-unit> <unit>` | all of the above for one unit, in seconds                    | while iterating                        |
-| `<check>`         | all of the above for the whole repo                              | before declaring done                  |
-| `<fix>`           | formats and autofixes                                            | before `<check>`                       |
-| `<e2e>`           | real user flows against a local backend, with no keys            | after touching any user flow           |
-| `<check-all>`     | `<check>` + e2e                                                  | restructures, multi-unit changes       |
-| `<build>`         | the production build succeeds                                    | after changing routing, config or deps |
+| Command | Proves | When |
+| --- | --- | --- |
+| `<typecheck>` | types hold across the whole project | after each series of edits |
+| `<lint>` | framework and correctness rules, with zero warnings | after each series of edits |
+| `<structure>` | layers, public surfaces, cycles, anatomy, test placement, docs, suppressions, sync | after adding or moving files |
+| `<format-check>` | every file is formatted | before declaring done |
+| `<test-baseline>` | all tests pass and none were lost | before declaring done |
+| `<check-feature> <feature>` | all of the above for one feature, in seconds | while iterating |
+| `<check>` | all of the above for the whole repo | before declaring done |
+| `<fix>` | formats and autofixes | when a hook didn't run |
+| `<e2e>` | real user flows against keyless local services | after touching any user flow |
+| `<check-all>` | `<check>` + e2e | multi-feature changes |
+| `<build>` | the production build succeeds | after changing routing, config or deps |
 
-**While iterating**: `<check-unit> <unit>`, `<test runner> <path>`,
+**While iterating**: `<check-feature> <feature>`, `<test runner> <path>`,
 `<e2e runner> <path>`.
 
 **Completeness checklist** (correct is not the same as complete). This block is
@@ -167,11 +175,13 @@ List only what `<check>` can't verify.
 ```markdown
 <!-- sync:completeness:start -->
 - [ ] New behaviour has a test at the right level (<helper → unit test;
-      component → component test; user flow → e2e>), and the test would fail if
-      the behaviour broke. A new branch with no test isn't complete.
-- [ ] The owning unit doc describes the new or changed behaviour. If the unit's
-      scope changed, its first line (and so its feature-map row) still says
-      what a user can do, and any new name users call it is in "Also called".
+      component → component test; user flow → e2e>), written before the code,
+      and the test would fail if the behaviour broke. A new branch with no
+      test isn't complete.
+- [ ] The owning FEATURE.md describes the new or changed behaviour. If the
+      feature's scope changed, its first line (and so its FEATURE_MAP.md row)
+      still says what a user can do, and any new name users call it is in
+      "Also called".
 - [ ] New public pieces are exported from the public surface; internals are not.
 - [ ] If a route, script or rule changed, AGENTS.md says so.
 - [ ] No test was deleted, skipped or weakened without a reason in the PR.
@@ -188,26 +198,25 @@ List only what `<check>` can't verify.
   CI means the count rose: run `<test-baseline>` locally and commit the file. On
   a merge conflict in the baseline file, take the larger numbers and rerun.
 - **E2E**: open the runner's failure artefacts (traces, screenshots, logs)
-  before changing any code, then rerun the single spec. Flows that need real
-  keys skip locally and are listed below.
+  before changing any code, then rerun the single spec.
 - **Lint**: fix the code. A single-line suppression with an inline reason is a
   last resort.
 - **A gate seems wrong**: say so in the PR. Don't edit checker rules, lint
   config, the baseline or CI to get to green.
 
-**Cannot be verified locally**: list production-only flows, paid or
-third-party APIs, which specs skip locally, and the exact command that runs
-them with real keys. Agents report these rather than building workarounds.
+**Cannot be verified locally**: list the cloud-only flows, which tests skip
+locally, and the exact command that runs them with real keys. Agents report
+these rather than building workarounds.
 
-## 4. Unit doc template
+## 4. FEATURE.md template
 
-Name it FEATURE.md or README.md, whichever the user chose; use one name
-everywhere.
+One in every feature folder, always named `FEATURE.md` (and in composition
+folders, if the repo has them).
 
 ```markdown
-# <Unit name>
+# <Feature name>
 
-<One sentence: what a user can do with it. The same sentence is the unit's
+<One sentence: what a user can do with it. The same sentence is the feature's
 row in FEATURE_MAP.md, and the checker compares them.>
 
 ## <Sub-feature>
@@ -225,87 +234,84 @@ Describe behaviour, not implementation. Never include counts or constants
 copied from the code: they drift, and the code is the source of truth for
 them. The `## Files` list is the one file list that's allowed, because each
 line adds a purpose and the checker keeps it complete. Parallel agents each
-edit their own unit's doc, so these docs don't become hotspots.
+edit their own feature's FEATURE.md, so these docs don't become hotspots.
 
-## 5. The feature map
+## 5. FEATURE_MAP.md
 
-`FEATURE_MAP.md` sits next to AGENTS.md. It's the routing table from a request
-in the user's words ("make reactions work in threads") to the folder and doc
-that own it. Agents open it to answer three questions:
+`FEATURE_MAP.md` is its own file, next to AGENTS.md, in every repo, however
+small. It's the routing table from a request in the user's words ("make
+reactions work in threads") to the folder and doc that own it. Agents open it
+to answer three questions:
 
-- Which unit owns this behaviour?
+- Which feature owns this behaviour?
 - Does a helper for this already exist?
 - Where do I start reading?
 
-`<owner> <path>` answers the reverse question (file → unit), so the map never
-lists files.
-
-**Name and loading.** Use `FEATURE_MAP.md` unless "feature" reads oddly for the
-repo (a library or a backend might use `MODULE_MAP.md`); settle it in Phase 2
-with the unit doc name. AGENTS.md *links* to it, and doesn't import it (no
-`@FEATURE_MAP.md` in `CLAUDE.md`), so it costs context only when an agent is
-locating something.
+`<owner> <path>` answers the reverse question (file → feature), so the map
+never lists files. AGENTS.md links to it at the top and keeps no feature list
+of its own.
 
 ### Template
 
 Rename the tables to the layers chosen in Phase 1, and drop tables for layers
-the repo doesn't have. Within each table, sort the rows alphabetically. Two
-agents adding units then insert rows in different places instead of both
-appending at the end, so merge conflicts are rarer.
+the repo doesn't have (the Features table always stays). Within each table,
+sort the rows alphabetically. Two agents adding features then insert rows in
+different places instead of both appending at the end, so merge conflicts are
+rarer.
 
 ```markdown
 # Feature map
 
-Find the unit that owns a behaviour here, then read its FEATURE.md before
-changing anything. The rules are in [AGENTS.md](AGENTS.md). To find the unit
-that owns a file, run `<owner> <path>`.
+Find the feature that owns a behaviour here, then read its FEATURE.md before
+changing anything. The rules are in [AGENTS.md](AGENTS.md). To find the
+feature that owns a file, run `<owner> <path>`.
 
 ## Features
 
 | Feature | What a user can do | Also called |
-| ------- | ------------------ | ----------- |
+| --- | --- | --- |
 | [channels](features/channels/FEATURE.md) | Create, browse, join and leave channels. | rooms |
 | [reactions](features/reactions/FEATURE.md) | React to a message with an emoji and see who reacted. | emoji, likes |
 
 ## Views
 
 | View | Where it appears |
-| ---- | ---------------- |
+| --- | --- |
 | [sidebar](views/sidebar/FEATURE.md) | Left column: workspace switcher, channel list and DMs. |
 
 ## Primitives
 
 | Primitive | Use it for |
-| --------- | ---------- |
+| --- | --- |
 | [avatar](primitives/avatar.tsx) | A user's picture, with a presence dot and initials as the fallback. |
 
 ## Shared code
 
 | Module | Reach for it when |
-| ------ | ----------------- |
+| --- | --- |
 | [ids](lib/ids.ts) | You need a room, thread or message id. Never build one by hand. |
 
 ## Cross-cutting
 
 - Data model: <where it's defined, in one line>.
 - API routes: each `app/api/<name>/route.ts` re-exports one handler from
-  `features/<unit>/api/`. Run `<owner>` on a route file to find its unit.
-- <Anything else no unit owns, one line each: auth model, realtime model…>
+  `features/<feature>/api/`. Run `<owner>` on a route file to find its feature.
+- <Anything else no feature owns, one line each: auth model, realtime model…>
 
 ## Not yet migrated
 
 | Legacy path | Moving to |
-| ----------- | --------- |
+| --- | --- |
 | `components/search/` | `features/search` |
 ```
 
 ### What each column is for
 
-- **What a user can do**: the one sentence from Phase 1 that passed the unit
-  test ("can you describe it in one sentence a user would understand?"). It's
-  also the first line of the unit's doc, word for word, and the checker
-  compares the two. So the behaviour is described in one place, and the map
-  can't drift from it.
+- **What a user can do**: the one sentence from Phase 1 that passed the
+  feature test ("can you describe it in one sentence a user would
+  understand?"). It's also the first line of the feature's FEATURE.md, word
+  for word, and the checker compares the two. So the behaviour is described in
+  one place, and the map can't drift from it.
 - **Also called**: the other words users, the UI, issues and the team use for
   it ("DMs" for `conversations`, "workspace" for `organizations`). Collect them
   from UI copy, route names, issue titles and the README. This column is what
@@ -317,106 +323,100 @@ that owns a file, run `<owner> <path>`.
   how callers use the module, not from its export names. These rows are what
   stop agents writing a second `formatDate`.
 - **Cross-cutting**: one line per pattern, never a list of instances. Say how
-  API routes map to units; don't list the routes.
-- **Not yet migrated**: only during an incremental migration. It tells agents
+  API routes map to features; don't list the routes.
+- **Not yet migrated**: only while a migration is unfinished. It tells agents
   where legacy code lives, and where it's going. Delete the section once it's
   empty.
 
 ### What never goes in it
 
-- file lists (they belong in the unit doc's `## Files`)
-- dependencies between units (`<graph>` prints them)
+- file lists (they belong in FEATURE.md's `## Files`)
+- dependencies between features (`<graph>` prints them)
 - counts of anything
-- behaviour beyond the one sentence (it belongs in the unit doc)
+- behaviour beyond the one sentence (it belongs in FEATURE.md)
 - status, owners, roadmap or ticket links (they go stale, and they aren't
   needed to make a change)
 
 ### When to write it
 
 | Situation | When |
-| --------- | ---- |
-| Big-bang migration | After the last checkpoint, together with the unit docs. The Phase 2 unit map is the draft: its "What a user can do" column becomes the summaries. |
-| Incremental migration | In the first PR, listing the units that already exist and a "Not yet migrated" table. Each migration PR moves one row from that table into the right one. |
+| --- | --- |
+| Before the move (Phase 3.4) | Create it from the plan's feature table, with every feature in "Not yet migrated" (legacy path → target folder). |
+| Each migration checkpoint (3.5) | Move the feature's row into the Features table, with the one-sentence summary that's also the first line of its new FEATURE.md. |
+| After the move (3.6) | Delete the empty "Not yet migrated" table; fill in "Also called", the building-block and shared code rows, and the cross-cutting notes. |
+| A migration left unfinished (very large repos) | The "Not yet migrated" table stays, and later PRs move rows out of it. |
 | An existing map | During the drift audit: remove dependency columns, file lists, counts and status; add "Also called"; put it under the checker. |
-| A tiny repo (a handful of units, no building blocks) | Skip the separate file. Put the features table in AGENTS.md. |
 
 ### Size
 
-Aim for under ~100 lines. When there are too many units for that, group the
-features table under subheadings by product area. In a monorepo, write one map
-per package, next to that package's AGENTS.md. The root map then lists only
+Aim for under ~100 lines. When there are too many features for that, group
+the Features table under subheadings by product area. In a monorepo, write one
+map per package, next to that package's AGENTS.md. The root map then lists only
 the packages, each with a one-line summary and a link to the package's map.
 
 ### Keeping it true
 
 - The checker's `feature-map` rule (`checks-and-scripts.md`) fails when:
-  - a unit, composition piece, building block or core module has no row, or
+  - FEATURE_MAP.md is missing
+  - a feature, composition piece, building block or core module has no row, or
     has more than one
   - a link doesn't resolve
-  - a unit's summary differs from the first line of its doc
+  - a feature's summary differs from the first line of its FEATURE.md
   - rows aren't sorted
   - the "Not yet migrated" table and the checker's legacy-directory config
     disagree
 - The scaffolder takes the one-sentence summary as an argument. It writes the
-  sentence as the first line of the new unit's doc, and inserts the row into
-  the map in sorted position. So a freshly scaffolded unit passes `check`.
-- Other edits are by hand. Renaming or splitting a unit updates its row in the
-  same PR, and the checker fails until it does.
+  sentence as the first line of the new FEATURE.md, and inserts the row into
+  the map in sorted position. So a freshly scaffolded feature passes `check`.
+- Other edits are by hand. Renaming or splitting a feature updates its row in
+  the same PR, and the checker fails until it does.
 - The "Also called" column isn't checked by a script. The review skill flags a
   PR that introduces a new user-facing name without adding it.
 
-## 6. Scoped rules and tool pointers
+## 6. Nested rules
 
-Rules that matter only for some files go where agents load them only when
-they're working on those files. Examples: e2e locator rules, how to use the
-test backend mock, migration rules, one package's quirks. This keeps the
-always-on contract short.
+Rules that matter only for some files go in a nested `AGENTS.md` in the folder
+they apply to (the nearest one applies). Examples: e2e locator rules in the
+e2e folder, how to use the test backend mock in `tests/`, migration rules next
+to the migrations, one package's quirks in that package. This keeps the root
+contract short.
 
-| Mechanism                                  | Read by (check current docs)                                       |
-| ------------------------------------------ | ------------------------------------------------------------------ |
-| Root `AGENTS.md`                           | Codex, Cursor, GitHub Copilot (coding agent and code review), and many others |
-| Nested `AGENTS.md` in a subfolder (the nearest one applies) | Codex, Cursor, and others                         |
-| `CLAUDE.md` (root and nested)              | Claude Code, which doesn't read AGENTS.md: put `@AGENTS.md` in the root `CLAUDE.md` to import it |
-| `.claude/rules/*.md` with `paths:` frontmatter | Claude Code (glob-scoped)                                      |
-| `.cursor/rules/*.mdc` with `globs:`        | Cursor (glob-scoped)                                               |
-| `.github/instructions/*.instructions.md` with `applyTo:` | GitHub Copilot (glob-scoped)                         |
-
-- **Keep one source of truth.** When a rule applies to one folder, a nested
-  AGENTS.md is the most portable choice (add a nested `CLAUDE.md` containing
-  `@AGENTS.md` if Claude Code is used). When a rule applies to a glob that spans
-  folders (`**/*.spec.ts`), write it once in the primary tool's glob mechanism.
-  Give other tools a copy between `sync` markers, which the checker compares.
-- **Point, don't copy**, for always-on files: a `CLAUDE.md` containing
-  `@AGENTS.md` (plus any Claude-specific additions) rather than a second
-  contract.
+- Keep each nested AGENTS.md to the rules for that folder. Don't repeat the
+  root contract.
+- When a rule applies to a glob that spans folders (`**/*.spec.ts`), put it in
+  the nested AGENTS.md of the folder most of those files live in, or in a
+  short root section if they're scattered.
+- If the team also uses a tool with its own glob-scoped rules (Cursor's
+  `.cursor/rules/*.mdc`, Copilot's `.github/instructions/*.instructions.md`),
+  give it a copy between `sync` markers, which the checker compares.
 
 ## 7. Worked example doc
 
 Write this as `docs/EXAMPLE_CHANGE.md`, or as a short AGENTS.md section.
 Agents pattern-match on it, and reviewers can point to it.
 
-- **Preferred**: the first unit-sized change made after the restructure, so
+- **Preferred**: the first feature-sized change made after the restructure, so
   every path in it is real.
 - **Otherwise**: a representative change from history (new behaviour inside
-  one capability, with tests and docs). Rewrite its paths through the
-  migration's move map, and say that you rewrote them.
+  one feature, with tests and docs). Rewrite its paths through the migration's
+  move map, and say that you rewrote them.
 - **Never invent one.** If neither exists yet, list it as a follow-up.
 
 ```markdown
 # Worked example: <change>
 
-Commit(s): <sha> — <one line>. Chosen because <it touched one unit end to end>.
+Commit(s): <sha> — <one line>. Chosen because <it touched one feature end to end>.
 
 ## Order of work
-1. Unit doc: described the new behaviour (`<path>`)
-2. Model or logic: `<path>`: <what changed>
-3. Test: `<path>`: <what it asserts>
+1. FEATURE.md: described the new behaviour (`<path>`)
+2. Test, written first: `<path>`: <what it asserts>
+3. Model or logic: `<path>`: <what changed>
 4. UI or handler: `<path>`
 5. Public surface: exported `<name>` from `<surface file>`
 6. E2E: `<path>`
 
 ## Commands
-`<check-unit> <unit>` (caught: <…>), `<fix>`, `<check>`, `<e2e> <path>`
+`<check-feature> <feature>` (caught: <…>), `<check>`, `<e2e> <path>`
 
 ## What review caught that the checks didn't
 <…, or "nothing">

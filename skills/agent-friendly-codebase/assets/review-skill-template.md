@@ -3,7 +3,7 @@ name: "{{repo-slug}}-review"
 description: >-
   Review a diff, branch, commit or pull request in {{repo name}}{{app-scope}}
   against its agent contract. Confirms the checks are green, reads the
-  contract and the owning {{unit doc}} for every touched {{unit}}, then
+  contract and the owning FEATURE.md for every touched feature, then
   reports only what the checks cannot catch: real bugs, behaviour changed
   without docs or tests, weakened or deleted tests, architecture shortcuts,
   loosened gates and contract drift. Use whenever asked to review, check, look
@@ -28,7 +28,7 @@ spend findings on them.
 - Working tree: `git diff HEAD` and `git status --porcelain` (to see new files)
 
 Read the PR description: what does it claim to do? You'll check that claim. Map
-the touched files to units with `{{owner}} <paths>`.
+the touched files to features with `{{owner}} <paths>`.
 
 If the PR already has review comments, don't repeat findings that were already
 raised. Inline comments aren't in `gh pr view`; fetch them with
@@ -54,9 +54,9 @@ test.
 - `{{agents-md}}`
 - `{{feature map}}`, especially the shared code tables, to spot new helpers
   that duplicate existing ones
-- The {{unit doc}} of every touched {{unit}}, and of every unit whose public
-  surface it changed (`{{graph}} <unit> --reverse` lists them)
-- Scoped rules for the touched paths: {{scoped rules}}
+- The FEATURE.md of every touched feature, and of every feature whose public
+  surface it changed (`{{graph}} <feature> --reverse` lists them)
+- Nested AGENTS.md files for the touched paths: {{nested rules}}
 - `{{worked example}}`, for what a complete change looks like
 
 ## 4. Review
@@ -90,21 +90,22 @@ or *suspected*.
 
 ### Architecture and contract
 
-- No new dependency between units where the shared piece belongs in
+- No new dependency between features where the shared piece belongs in
   `{{core}}`. No logic in `{{entry layer}}`.
 - No new helper that duplicates one in the shared code tables of
   `{{feature map}}`.
-- A new name for a unit that users will see (UI copy, a route, a command) is
-  added to that unit's "Also called" in `{{feature map}}`.
-- {{unit doc}} edits describe behaviour. They don't add counts or constants
+- A new name for a feature that users will see (UI copy, a route, a command)
+  is added to that feature's "Also called" in `{{feature map}}`.
+- FEATURE.md edits describe behaviour. They don't add counts or constants
   copied from code; the only file list is the checker-verified `## Files`.
 - Hotspot files ({{hotspots}}) are touched only when there's no local
   alternative.
 - No tests skipped ({{skip markers}}) or weakened, and `{{baseline file}}` isn't
-  lowered, unless the PR says why.
+  lowered, unless the PR says why. Conditional skips for cloud-only services
+  listed in AGENTS.md are fine.
 - New suppressions ({{suppression syntax}}) have reasons that hold up.
 - Changes to the gates (checker and its config, lint, format or type config,
-  baseline, CI, CODEOWNERS, this skill, bot configs) are called out and
+  baseline, CI, format hooks, CODEOWNERS, this skill, bot configs) are called out and
   justified. A gate loosened to get to green is blocking.
 - {{unenforced conventions}}
 

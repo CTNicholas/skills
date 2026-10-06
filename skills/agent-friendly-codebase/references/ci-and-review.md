@@ -24,9 +24,11 @@ Rules:
   other way round.
 - E2E runs in CI against the same local backend that local runs use, so it
   needs no secrets. Upload the failure artefacts.
-- `check` (and e2e, where it exists) are **required statuses** on the default
-  branch. Rulesets and branch protection are a repo-admin setting, so give the
-  user the exact setting, or run `gh api` only if they ask you to.
+- `check` (and e2e, where it exists) become **required statuses** on the
+  default branch. A required check must have run once before it can be
+  required, and rulesets are a repo-admin setting, so don't change them
+  yourself: put the exact command (or settings path) in the final report, to
+  run once the workflow has run on the default branch.
 
 ## 2. The CI workflow
 
@@ -121,8 +123,9 @@ with the app keeps two apps' `check` jobs from colliding in branch protection.
 - **Other CI systems**: the same rules apply. Run the same command, scope it by
   path at job level, and make it required on the default branch.
 
-Verify the workflow with `actionlint` if it's available, and on a branch if you
-can push one.
+Verify the workflow with `actionlint` if it's available. Nothing is pushed, so
+its first real run happens when the user pushes the branch; say so in the
+final report.
 
 ## 3. Protecting the gates
 
@@ -131,19 +134,21 @@ Some AI reviewers also read their instructions from the PR's own branch, so a
 PR can edit the reviewer that's reviewing it. Two defences:
 
 - **CODEOWNERS** on the gate files, with code-owner review required on the
-  default branch. This is the one canonical list of gate files; other files
-  point here:
+  default branch. Add these entries only if a CODEOWNERS file already exists,
+  using the owners it already names; otherwise list it as a follow-up in the
+  final report. This is the one canonical list of gate files; other files point
+  here:
   - the checker script and its config
   - CI workflows
-  - lint, format and type configs
+  - lint, format and type configs, and the format-on-edit hooks
   - the test baseline, and any legacy suppression allowlist
   - AGENTS.md (its completeness block feeds every reviewer)
   - the review skill and bot configs
   - CODEOWNERS itself
 
   In a solo-maintainer repo, required code-owner review blocks the owner's own
-  PRs. Use a ruleset bypass for the owner, or rely on the review skill's
-  gate-change flag alone.
+  PRs. Don't change rulesets; list "add an owner bypass to the ruleset" as a
+  follow-up.
 - **The review skill flags gate changes** as needing justification, and treats
   a loosened gate as blocking.
 
@@ -165,8 +170,9 @@ Start from `assets/review-skill-template.md`.
 **Name**: `<repo>-review` (for example `acme-web-review`). Avoid a bare
 `review`, which collides with built-in commands in some tools.
 
-**Location**: put it where the team's agents load project skills. Check the
-current docs; common locations are:
+**Location**: wherever the repo already keeps skills. Otherwise use
+`.claude/skills/<repo>-review/`, which the most tools read. Check the current
+docs; common locations are:
 
 | Tool                 | Reads project skills from                                                              |
 | -------------------- | -------------------------------------------------------------------------------------- |
@@ -175,10 +181,11 @@ current docs; common locations are:
 | Codex                | `.agents/skills/`                                                                      |
 | GitHub Copilot (including code review) | agent skills in the repo; check its docs for the directories          |
 
-Choose the directory that covers most of the team's tools. If one directory
-can't cover them all, keep one real copy and symlink the others, or ask the
-user. Skills usually live at the repo root, even for one app inside a monorepo;
-in that case the skill's description names the app path.
+If the repo shows signs of a tool the chosen directory doesn't cover (for
+example `.codex/` with the skill in `.claude/skills/`), keep one real copy and
+add a symlink in that tool's directory. Skills usually live at the repo root,
+even for one app inside a monorepo; in that case the skill's description names
+the app path.
 
 **Filling it in**: every `{{placeholder}}` is filled when you generate the
 skill. Values only known at review time (the PR number, the changed paths) are
@@ -189,24 +196,26 @@ written as `<pr-number>` and `<paths>`, and they stay in the generated skill.
 | `{{repo-slug}}`, `{{repo name}}`, `{{app-scope}}` | the repo; `{{app-scope}}` is " (the app under `<app>/`)" or empty      |
 | `{{default-branch}}`                          | `git remote show origin` or `gh repo view --json defaultBranchRef`        |
 | `{{check}}`, `{{e2e}}`, `{{owner}}`, `{{graph}}` | the literal invocations from 3.0, including the runner's argument separator where arguments follow (`npm run graph --`); drop the e2e lines if there's no e2e |
-| `{{agents-md}}`, `{{feature map}}`, `{{unit doc}}`, `{{unit}}`, `{{worked example}}` | 3.3 (the path to the AGENTS.md that applies, which is the nested one for an app in a monorepo) |
-| `{{core}}`, `{{entry layer}}`                 | the approved structure                                                    |
-| `{{scoped rules}}`                            | 3.3: each scoped rule file, and what it covers                            |
+| `{{agents-md}}`, `{{feature map}}`, `{{worked example}}` | 3.6: paths to the AGENTS.md and FEATURE_MAP.md that apply (the nested ones for an app in a monorepo), and the worked example |
+| `{{core}}`, `{{entry layer}}`                 | the chosen structure                                                     |
+| `{{nested rules}}`                            | 3.6: each nested AGENTS.md, and what it covers                            |
 | `{{skip markers}}`, `{{suppression syntax}}`  | `toolchains.md`, for the repo's languages                                 |
 | `{{test levels}}`                             | the completeness checklist in AGENTS.md                                   |
-| `{{baseline file}}`, `{{hotspots}}`           | 3.5; the audit                                                            |
+| `{{baseline file}}`, `{{hotspots}}`           | 3.2; the audit                                                            |
 | `{{domain edges}}`, `{{hazards}}`             | the audit: where bugs have clustered (`git log --grep=fix --name-only` per path), concurrency and realtime paths, auth, data migrations, money, time zones |
-| `{{unenforced conventions}}`                  | conventions the user approved that no check enforces yet                  |
+| `{{unenforced conventions}}`                  | repo conventions that no check enforces yet                               |
 | The `completeness` sync block                 | paste it from AGENTS.md                                                   |
 
 When you're done, grep the generated skill for `{{`; nothing should remain.
 Keep it under ~150 lines. Leave the `sync` markers in place, because the bot
 configs copy those blocks.
 
-**Dry-run it** (Phase 4, step 9). Seed a small diff with one problem the checks
-can't catch (for example, behaviour changed without a unit doc update) and one
-they can (for example, a formatting error). The review should report the first
-and defer the second to `check`. Then revert the seeded diff.
+**Dry-run it** (Phase 4, step 11). Seed a small diff with one problem the checks
+can't catch (a behaviour change without a FEATURE.md update) and one they can (a
+formatting error). Ask for early feedback despite the red checks, since the
+skill otherwise stops at red checks. It passes if the formatting error appears
+only under "Checks" and the FEATURE.md gap appears as a finding. Then revert
+the seeded diff.
 
 If the team runs a dedicated review agent definition (for example, a subagent
 file), keep it thin: it should say to use the `<repo>-review` skill, and
@@ -214,9 +223,11 @@ nothing more.
 
 ## 6. AI reviewer config
 
-Configure only the reviewers the team uses or asked for. These products change
+Configure the reviewer that's already set up, or the one picked in the plan's
+question (nothing, if the answer was none). These products change
 often, so confirm file names and fields in their current docs before writing
-anything. Keep each config short (a few thousand characters at most). It points
+anything. If you can't reach the docs, use the shapes here and note it in the
+final report. Keep each config short (a few thousand characters at most). It points
 to the contract, and carries synced copies of two blocks:
 
 - `review-hazards`, whose source is the review skill
@@ -234,7 +245,7 @@ path.
 ```markdown
 # Review rules for <app>
 
-Read `<agents-md>` and the owning unit's `<unit doc>` before reviewing.
+Read `<agents-md>`, `<feature map>` and the owning feature's FEATURE.md before reviewing.
 `<check>` runs in CI. Don't report formatting, lint, import order or anything
 else it enforces.
 
@@ -262,7 +273,7 @@ reviews:
   path_instructions:
     - path: "<app>/**"
       instructions: |
-        Read <agents-md> and the owning <unit doc>. Don't report what `<check>` enforces.
+        Read <agents-md> and the owning FEATURE.md. Don't report what `<check>` enforces.
         <!-- sync:review-hazards:start -->
         …
         <!-- sync:review-hazards:end -->
@@ -276,11 +287,12 @@ reviews:
 where `<pr-number>` is `${{ github.event.pull_request.number }}`.
 
 - **Put it in the same workflow as `<app>-check`**, with
-  `needs: [<app>-check]`, so it only reviews green changes and the skill's
-  "gate on checks" step is already satisfied. Give the workflow
-  `pull_request: types: [opened, synchronize, reopened, ready_for_review]`. If
-  you don't want a review on every push, add `if: github.event.action !=
-  'synchronize'` to the review job only.
+  `needs: [<app>-check]` and `if: github.event_name == 'pull_request'`, so it
+  only reviews green PRs (the workflow also runs on pushes to the default
+  branch, which have no PR to review). Give the workflow's `pull_request`
+  trigger `types: [opened, synchronize, reopened, ready_for_review]`, and add
+  `github.event.action != 'synchronize'` to the review job's `if:`, so it
+  reviews when a PR opens or becomes ready, not on every push.
 - **Run no PR code in this job.** It reads, and never runs `check`, tests or
   scripts from the PR, so its secrets are never exposed to code from a PR. The
   template's CI mode tells the skill to prove suspicions with reproduction
@@ -297,8 +309,9 @@ where `<pr-number>` is `${{ github.event.pull_request.number }}`.
   authenticates through the Claude GitHub App (`id-token: write`) with
   read-only repository permissions.
 
-For fully managed review without a workflow file, Anthropic's Code Review
-product is an alternative; configure it per its docs.
+**Follow-ups for any reviewer**: installing its GitHub app, or adding the
+secret the workflow uses, is a repo-admin step. List it in the final report
+with the exact link or command.
 
 **Others**: any reviewer that reads AGENTS.md already gets the contract. Give it
 the two blocks through its own path-scoped instruction mechanism.

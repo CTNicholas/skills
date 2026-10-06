@@ -1,12 +1,15 @@
 # Toolchains: commands per ecosystem
 
-Use the repo's existing tools first. Only introduce a tool when the role is
-empty, and say so in the report. Tool versions and flags change, so confirm
+Use the repo's existing tools first. When a role is empty, add the default
+from "Defaults when a role is empty", and say so in the final report. Tool versions and flags change, so confirm
 each command against the installed version (`--help`) before relying on it.
 
 ## Contents
 
 - Task runners and the `check` entry point
+- Defaults when a role is empty
+- Keyless local backends
+- Format-on-edit hooks
 - Skip markers, suppressions and magic comments
 - JavaScript / TypeScript
 - Python
@@ -35,22 +38,122 @@ Agents discover commands where the ecosystem keeps them, so put `check` there:
 | JVM       | hook into Gradle's `check` task (or the Maven `verify` lifecycle), which is already the convention                     |
 | Others    | a Makefile or justfile at the root                                                                                     |
 
-Role names in SKILL.md (`check`, `check-unit`, `fix`, `structure`…) are
+Role names in SKILL.md (`check`, `check-feature`, `fix`, `structure`…) are
 abstract. Name them the way the runner expects, and always document the
 literal invocation in AGENTS.md:
 
-| Runner          | Naming                                                    | Scoped invocation (`check-unit`)                        |
+| Runner          | Naming                                                    | Scoped invocation (`check-feature`)                        |
 | --------------- | --------------------------------------------------------- | ------------------------------------------------------- |
-| npm/pnpm/yarn/bun | `check`, `check:unit`, `lint:structure`, `new:feature` (colons by convention) | `npm run check:unit -- <unit>`         |
-| just            | `check`, `check-unit` (recipe names can't contain colons) | `just check-unit <unit>`                                |
-| make            | `check`, `check-unit`                                     | `make check-unit UNIT=<unit>` (`make check <path>` would parse the path as a target) |
+| npm/pnpm/yarn/bun | `check`, `check:feature`, `lint:structure`, `new:feature` (colons by convention) | `npm run check:feature -- <feature>`         |
+| just            | `check`, `check-feature` (recipe names can't contain colons) | `just check-feature <feature>`                                |
+| make            | `check`, `check-feature`                                     | `make check-feature FEATURE=<feature>` (`make check <path>` would parse the path as a target) |
 | Gradle          | the built-in `check` task per module                      | `./gradlew :<module>:check`                             |
 | cargo xtask     | `cargo xtask check`                                       | `cargo xtask check <crate>`                             |
-| poethepoet / nox | `check`, `check-unit`                                    | `uv run poe check-unit <unit>`, `nox -s check -- <unit>` |
+| poethepoet / nox | `check`, `check-feature`                                    | `uv run poe check-feature <feature>`, `nox -s check -- <feature>` |
 
 In npm, a chained script (`"check": "a && b"`) passes `-- <arg>` only to its
-last command. So `check-unit` must be a small script that parses its argument
+last command. So `check-feature` must be a small script that parses its argument
 and runs each step itself. See `checks-and-scripts.md`.
+
+## Defaults when a role is empty
+
+Use whatever the repo already has, even if it isn't the default here (Jest,
+Mocha, Cypress, unittest and so on stay). Add a default only when nothing fills
+the role.
+
+| Ecosystem | Unit and integration tests | Components | E2E | Formatter | Linter |
+| --- | --- | --- | --- | --- | --- |
+| JS/TS | Vitest | Testing Library on the repo's unit runner (Vitest if there's none), with jsdom or happy-dom | Playwright (web apps) | Prettier | ESLint with the framework's preset |
+| Python | pytest | — | Playwright for Python (web apps), or the framework's test client for APIs | ruff format | ruff check |
+| Go | `go test` | — | `net/http/httptest` for APIs | gofmt | golangci-lint |
+| Rust | `cargo test` | — | integration tests in `tests/` | rustfmt | clippy |
+| JVM | JUnit 5 | — | the framework's test slice with Testcontainers; Playwright for web UIs | Spotless | Error Prone or detekt |
+| .NET | xUnit | bUnit (Blazor) | Playwright for .NET | `dotnet format` | Roslyn analyzers |
+| Ruby | RSpec (minitest if Rails' default is already there) | — | system specs with Capybara | rubocop | rubocop |
+| Elixir | ExUnit | — | Phoenix.ConnTest, Wallaby for UIs | `mix format` | credo |
+| PHP | Pest | — | Laravel Dusk or Playwright | PHP-CS-Fixer (Pint in Laravel) | PHPStan |
+| Swift | Swift Testing | — | XCUITest | swift-format | SwiftLint |
+
+A "full test suite" means every row that applies to the repo: unit tests for
+logic, component tests for UI, and e2e (or API-level) tests for user flows.
+
+## Keyless local backends
+
+For each external service the app uses, look for a way to run it locally with
+no keys: a local dev server, an emulator, a CLI `start` or `dev` command, a
+Docker image, or an official mock. Common options (check the service's current
+docs):
+
+| Service | Keyless local option |
+| --- | --- |
+| Postgres, MySQL, Redis, MongoDB | Docker containers (docker compose), or Testcontainers inside tests |
+| Supabase | the Supabase CLI's local stack |
+| Firebase | the Firebase Local Emulator Suite |
+| AWS | LocalStack; DynamoDB Local; MinIO for S3-compatible storage |
+| Liveblocks | Liveblocks' local dev server |
+| Stripe | stripe-mock, or recorded fixtures behind an HTTP mock |
+| Email | Mailpit |
+| Other HTTP APIs, including AI providers | an HTTP mock with recorded fixtures (MSW for JS, respx or responses for Python, `httptest` for Go) |
+| Auth providers | the provider's local or test mode; otherwise a test-only session stub that the server refuses to enable in production builds |
+
+- `dev-local` starts the local services and the app together, and sets the
+  env vars that point the app at them, so no `.env` with secrets is needed.
+- `e2e` and integration tests start (or reuse) the same services.
+- Take ports from env with a free-port fallback, and name containers and data
+  directories after the worktree, so two worktrees can run at once.
+- If a service has no local option, don't fake its behaviour in e2e. Tests
+  that need it skip locally with a message naming the service, and AGENTS.md
+  lists them as cloud-only with the command that runs them with real keys.
+
+## Format-on-edit hooks
+
+Every agent edit is formatted straight away by a post-edit hook that calls the
+repo's `format-changed` script (`checks-and-scripts.md` §4). Skip this if the
+repo already formats agent edits. These formats change, so check each tool's
+current hooks docs, and test every hook you add.
+
+**Claude Code**: `.claude/settings.json` (committed project settings). The hook
+gets JSON on stdin with the path in `tool_input.file_path`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/format-changed.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Cursor**: `.cursor/hooks.json`. The `afterFileEdit` hook gets JSON on stdin
+with `file_path` and `workspace_roots`. At the time of writing, the command
+runs relative to the `.cursor/` folder; if the current docs say otherwise,
+adjust the path:
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [{ "command": "node ../scripts/format-changed.mjs" }]
+  }
+}
+```
+
+**Other tools**: add the equivalent where the tool has a post-edit or
+after-tool-use hook. Where it doesn't (at the time of writing, Codex had no
+per-edit hook), agents rely on `fix`, and `format-check` in `check` and CI
+catches anything missed.
+
+Use the repo's runtime for the script (`python3 scripts/format_changed.py`,
+`go run ./tools/formatchanged`), and keep it dependency-free.
 
 ## Skip markers, suppressions and magic comments
 
@@ -82,6 +185,11 @@ for the repo's languages. Three kinds of thing, treated differently:
 
 If a language isn't listed, find its required magic comments before turning on
 a "no comments" policy.
+
+Conditional skips for cloud-only services (`test.skipIf(…)`, `it.skipIf`,
+Playwright's `test.skip(condition, reason)`, `pytest.mark.skipif`,
+`t.Skip` behind an env check) are allowed when the service is listed as
+cloud-only in AGENTS.md. Unconditional skips and focus markers are not.
 
 ## JavaScript / TypeScript
 
@@ -125,9 +233,9 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | Typecheck       | `go build ./...`                                                                                                 |
 | Tests           | `go test ./...`                                                                                                  |
 | Test counts     | `go test -list '.*' ./...` (count lines that start with `Test`, `Example` or `Fuzz`); files = number of `_test.go` files |
-| Scoped          | `go test ./internal/<unit>/...`, `golangci-lint run ./internal/<unit>/...`                                        |
+| Scoped          | `go test ./internal/<feature>/...`, `golangci-lint run ./internal/<feature>/...`                                        |
 | Boundaries      | the compiler forbids import cycles and `internal/` restricts visibility; depguard or go-arch-lint enforce layer direction; `go list -json ./...` gives the import graph for repo scripts |
-| Public surface  | exported identifiers of the unit package; keep internals in a sub-`internal/` package                            |
+| Public surface  | exported identifiers of the feature package; keep internals in a sub-`internal/` package                            |
 | Doc comments    | Exported doc comments are a Go convention; keep them under a "public API docs only" policy. |
 
 ## Rust
@@ -151,7 +259,7 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | Lint        | Error Prone, Checkstyle, PMD or detekt, with warnings as errors; Android Lint with `warningsAsErrors`                  |
 | Tests       | JUnit 5. On Android: `src/test` for local tests, `src/androidTest` for instrumented tests                            |
 | Test counts | sum the `tests` attributes in the JUnit XML reports (`build/test-results/**/*.xml` or `target/surefire-reports`)     |
-| Boundaries  | one Gradle/Maven module per unit (on Android, `:feature:<name>` and `:core:<name>`); ArchUnit tests for layer rules; Spring Modulith's `ApplicationModules.of(App.class).verify()` for Spring Boot |
+| Boundaries  | one Gradle/Maven module per feature (on Android, `:feature:<name>` and `:core:<name>`); ArchUnit tests for layer rules; Spring Modulith's `ApplicationModules.of(App.class).verify()` for Spring Boot |
 
 ## .NET
 
@@ -160,7 +268,7 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | Format      | `dotnet format --verify-no-changes`                                                           |
 | Lint        | Roslyn analyzers with `TreatWarningsAsErrors`                                                 |
 | Tests       | `dotnet test`; counts from `dotnet test --list-tests`                                         |
-| Boundaries  | one project per unit (project references are the layer rules); NetArchTest or ArchUnitNET     |
+| Boundaries  | one project per feature (project references are the layer rules); NetArchTest or ArchUnitNET     |
 
 ## Ruby / Rails
 
@@ -168,7 +276,7 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | ----------- | -------------------------------------------------------------------------------------------- |
 | Format/lint | rubocop (rubocop-rails); Sorbet or Steep if typing is already in use                         |
 | Tests       | RSpec (counts from `rspec --dry-run --format json`, field `summary.example_count`) or minitest |
-| Boundaries  | packwerk (`packs/<unit>/package.yml` declares dependencies) or Rails engines                 |
+| Boundaries  | packwerk (`packs/<feature>/package.yml` declares dependencies) or Rails engines                 |
 
 ## Elixir / Phoenix
 
@@ -176,7 +284,7 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | ----------- | -------------------------------------------------------------------------- |
 | Format/lint | `mix format --check-formatted`, `mix credo --strict`, dialyzer             |
 | Tests       | `mix test`                                                                 |
-| Boundaries  | Phoenix contexts are the units; the `boundary` library enforces them at compile time |
+| Boundaries  | Phoenix contexts are the feature folders; the `boundary` library enforces them at compile time |
 
 ## PHP
 
@@ -192,7 +300,7 @@ Point each runner's globs at its own suffix only. For example, unit tests at
 | ----------- | ------------------------------------------------------------------------------- |
 | Format/lint | swift-format or SwiftFormat; SwiftLint `--strict`                               |
 | Tests       | `swift test` (counts from `swift test list`; older toolchains use `--list-tests`) |
-| Boundaries  | SwiftPM targets per unit (target dependencies are the layer rules); for Xcode apps, local packages |
+| Boundaries  | SwiftPM targets per feature (target dependencies are the layer rules); for Xcode apps, local packages |
 
 ## Monorepos and polyglot repos
 
@@ -203,8 +311,8 @@ Point each runner's globs at its own suffix only. For example, unit tests at
   needs to run the whole repo.
 - The package dependency graph is the layer rule. Declare every dependency
   explicitly (strict workspace resolution, or Nx tags).
-- If an app inside the monorepo is excluded from root CI, say so in the report,
-  and let the user decide whether to add a scoped workflow.
+- If an app inside the monorepo is excluded from root CI, add a workflow scoped
+  to the app (`ci-and-review.md` §2), and say so in the final report.
 
 ## Ecosystems not listed here
 
