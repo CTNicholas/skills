@@ -1,6 +1,6 @@
 # Skills
 
-Various agent skills intended for public use.
+Agent skills intended for public use.
 
 ## Installation
 
