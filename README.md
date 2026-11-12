@@ -10,6 +10,6 @@ npx skills add ctnicholas/skills
 
 ## List
 
-| Name | Description |
-| ---- | ----------- |
+| Name                                                                                                       | Description                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`agent-friendly-codebase`](https://github.com/CTNicholas/skills/tree/main/skills/agent-friendly-codebase) | A complex skill that converts your app into a codebase that agents can work on safely and simultaneously, adding compartmentalisation, verification, feature maps, and more. |
