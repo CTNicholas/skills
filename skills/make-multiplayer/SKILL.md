@@ -16,10 +16,10 @@ Your instructions:
    to set up a multiplayer app with Liveblocks.
 3. List each multiplayer feature that you could add to the app using Liveblocks,
    and ask the user which parts they would like to add. Remember that adding
-   simple presence features like live avatars are almost always a good idea, so
+   simple presence features like live avatars is almost always a good idea, so
    you can often find a place for them.
 4. When the user responds, follow the Liveblocks skill to convert the selected
    parts to multiplayer. Skip any steps inside the skill that have already been
    completed (for example, the user has already told you which feature they want
-   to build, andd you've already scanned the codebase).
+   to build, and you've already scanned the codebase).
 5. Complete the steps and you are done!
