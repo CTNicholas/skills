@@ -11,9 +11,9 @@ Your instructions:
 1. Scan the current codebase and figure out which parts of the app can be
    converted to multiplayer. Liveblocks is browser-based and supports JavaScript
    and TypeScript on the front-end. Any back-end can be used.
-2. Load the Liveblocks skill (https://liveblocks.io/SKILL.md) and get started
-   guides (https://liveblocks.io/docs/get-started.md) to learn how to set up a
-   multiplayer app with Liveblocks.
+2. Load the [Liveblocks skill](https://liveblocks.io/SKILL.md) and
+   [get started guides](https://liveblocks.io/docs/get-started.md) to learn how
+   to set up a multiplayer app with Liveblocks.
 3. List each multiplayer feature that you could add to the app using Liveblocks,
    and ask the user which parts they would like to add. Remember that adding
    simple presence features like live avatars are almost always a good idea, so
